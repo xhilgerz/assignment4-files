@@ -11,8 +11,28 @@ typedef struct {
 
 } COURSE;
 
-void createCourse(char file_name[]);
+void createCourse();
 
-void saveCourse(char file_name[], int course_number, const COURSE* course);
+void updateCourse();
+
+void readCourse();
+
+void deleteCourse();
+
+void saveCourse( int course_number, COURSE* course);
+
+COURSE* loadCourse(int course_number);
+
+void courseIO(char* output,void* variable, char type);
+
+int courseIsCreated(COURSE* course,int course_num);
+
+COURSE* createCourseStruct();
+
+void keepCourse(COURSE*inputCourse,COURSE*loadCourse);
+
+void stringCompareCopy(char* string1, char* string2);
+
+void intCompareCopy(int* num1, int* num2);
 
 #endif 
