@@ -25,7 +25,7 @@ COURSE* loadCourse(int course_number);
 
 void courseIO(char* output,void* variable, char type);
 
-int courseIsCreated(COURSE* course,int course_num);
+int courseIsCreated(int course_num);
 
 COURSE* createCourseStruct();
 
@@ -35,4 +35,7 @@ void stringCompareCopy(char* string1, char* string2);
 
 void intCompareCopy(int* num1, int* num2);
 
+void displayCourseOptions();
+
+int courseFound(int course_number);
 #endif 

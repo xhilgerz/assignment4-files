@@ -4,20 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-char file_name[] = "courses.dat";
+
+char file_name[] = "data/courses.dat";
 
 int main() {
-    char line1[] = "Enter one of the following actions or press CTRL-D to exit.";
-    char choice_C[] = "C - Create a new course record";
-    char choice_U[] = "U - Update an existing course record";
-    char choice_R[] = "R - Read an existing course record";
-    char choice_D[] = "D - Delete an existing course record";
 
-    puts(line1);
-    puts(choice_C);
-    puts(choice_U);
-    puts(choice_R);
-    puts(choice_D);
+    displayCourseOptions();
+    
     
     char user_input;
     while(scanf(" %c", &user_input) != EOF) {
@@ -25,18 +18,24 @@ int main() {
         switch(user_input) {
             case 'C':
                 createCourse();
+                displayCourseOptions();
                 break;
             case 'U':
                 updateCourse();
+                displayCourseOptions();
                 break;
             case 'R':
                 readCourse();
+                displayCourseOptions();
                 break;
             case 'D':
                 deleteCourse();
+                displayCourseOptions();
                 break;
             default:
                 printf("Invalid choice. Please try again.\n");
+                displayCourseOptions();
+
         }
     }
     return 0;
@@ -49,12 +48,12 @@ void createCourse() {
     
     COURSE* course = createCourseStruct();
     if(course == NULL) {
-        fprintf(stderr, "Error creating course\n");
+        fprintf(stderr, "ERROR: creating course\n");
         return;
     }
 
-    if(courseIsCreated(course, course_num)) {
-        fprintf(stderr, "Error: course already exists\n");
+    if(courseIsCreated(course_num)> 0) {
+        fprintf(stderr, "ERROR: course already exists\n");
         free(course);
         return;
     }
@@ -63,20 +62,22 @@ void createCourse() {
     free(course);
 }
 
+
 void updateCourse() {
     int course_num;
     courseIO("Course number", &course_num, 'i');
     
     COURSE* tempCourse = loadCourse(course_num);
-    if(tempCourse == NULL) {
-        fprintf(stderr, "Error: course doesn't exist\n");
-        return;
-    }
 
     COURSE* course = createCourseStruct();
     if(course == NULL) {
         free(tempCourse);
-        fprintf(stderr, "Error creating course\n");
+        fprintf(stderr, "ERROR: creating course\n");
+        return;
+    }
+
+    if(courseFound(course_num)==0) {
+        fprintf(stderr, "ERROR: course not found \n");
         return;
     }
 
@@ -94,7 +95,12 @@ void readCourse() {
     
     COURSE* course = loadCourse(course_num);
     if(course == NULL) {
-        fprintf(stderr, "Error: course doesn't exist\n");
+        fprintf(stderr, "ERROR: course doesn't exist\n");
+        return;
+    }
+
+    if(courseFound(course_num)==0) {
+        fprintf(stderr, "ERROR: course not found \n");
         return;
     }
 
@@ -114,19 +120,24 @@ void deleteCourse() {
 
     FILE *file = fopen(file_name, "rb+");
     if(file == NULL) {
-        perror("Error opening file");
+        perror("ERROR: opening file");
         return;
     }
 
     if(fseek(file, course_number * sizeof(COURSE), SEEK_SET) != 0) {
-        perror("Error seeking in course file");
+        perror("ERROR: seeking in course file");
         fclose(file);
+        return;
+    }
+
+    if(courseFound(course_number)==0) {
+        fprintf(stderr, "ERROR: course not found \n");
         return;
     }
 
     COURSE zero_course = {0};
     if(fwrite(&zero_course, sizeof(COURSE), 1, file) != 1) {
-        perror("Error writing to file");
+        perror("ERROR: writing to file");
     }
     fclose(file);
     printf("Course deleted successfully.\n");
@@ -134,20 +145,29 @@ void deleteCourse() {
 
 
 void saveCourse(int course_number, COURSE* course) {
+    
+
     FILE *file = fopen(file_name, "rb+");
     if(file == NULL) {
-        perror("Error opening file");
+        perror("ERROR: opening file");
+        return;
+    }
+
+    COURSE existing_course;
+    if (fread(&existing_course, course_number*sizeof(COURSE), 1, file) == 1) {
+        puts("Course already Exists");
+        fclose(file);
         return;
     }
 
     if(fseek(file, course_number * sizeof(COURSE), SEEK_SET) != 0) {
-        perror("Error seeking in file");
+        perror("ERROR: seeking in file");
         fclose(file);
         return;
     }
 
     if(fwrite(course, sizeof(COURSE), 1, file) != 1) {
-        perror("Error writing to file");
+        perror("ERROR: writing to file");
     }
     fclose(file);
     printf("Course saved successfully.\n");
@@ -156,11 +176,12 @@ void saveCourse(int course_number, COURSE* course) {
 COURSE* loadCourse(int course_number) {
     FILE *file = fopen(file_name, "rb");
     if(file == NULL) {
-        perror("Error opening file");
+        perror("ERROR: opening file");
         return NULL;
     }
 
     if(fseek(file, course_number * sizeof(COURSE), SEEK_SET) != 0) {
+        perror("ERROR: couldn't find file");
         fclose(file);
         return NULL;
     }
@@ -172,6 +193,7 @@ COURSE* loadCourse(int course_number) {
     }
 
     if(fread(course, sizeof(COURSE), 1, file) != 1) {
+        perror("ERROR: reading file");
         free(course);
         fclose(file);
         return NULL;
@@ -182,7 +204,7 @@ COURSE* loadCourse(int course_number) {
 }
 
 void courseIO(char* output, void* variable, char type) {
-    printf("%s: ", output);
+    printf("%s ", output);
     switch(type) {
         case 'i':
             scanf("%d", (int*)variable);
@@ -199,24 +221,21 @@ void courseIO(char* output, void* variable, char type) {
     }
 }
 
-int courseIsCreated(COURSE* course, int course_num) {
+int courseIsCreated(int course_num) {
     FILE *file = fopen(file_name, "rb");
     if(file == NULL) {
-        return 0; // File doesn't exist means course doesn't exist
+        return 0; 
     }
 
-    if(fseek(file, course_num * sizeof(COURSE), SEEK_SET) != 0) {
-        fclose(file);
-        return 0;
-    }
+    COURSE course;
 
-    if(fread(course, sizeof(COURSE), 1, file) != 1) {
-        fclose(file);
-        return 0;
+    if(fseek(file, course_num * sizeof(COURSE), SEEK_SET) == 0) {
+        fread(&course, sizeof(COURSE), 1, file);
+        return course.course_Hours;
     }
 
     fclose(file);
-    return course->course_Name[0] != '\0'; // Check if name is not empty
+    return 0; // Check if name is not empty
 }
 
 COURSE* createCourseStruct() {
@@ -258,4 +277,27 @@ void intCompareCopy(int* num1, int* num2) {
     if(*num1 == 0) {
         *num1 = *num2;
     }
+}
+
+void displayCourseOptions(){
+
+    char line1[] = "Enter one of the following actions or press CTRL-D to exit.";
+    char choice_C[] = "C - Create a new course record";
+    char choice_U[] = "U - Update an existing course record";
+    char choice_R[] = "R - Read an existing course record";
+    char choice_D[] = "D - Delete an existing course record";
+
+    puts(line1);
+    puts(choice_C);
+    puts(choice_U);
+    puts(choice_R);
+    puts(choice_D);
+
+}
+
+int courseFound(int course_number){
+    if(courseIsCreated(course_number) > 0) {
+        return 1;
+    }
+    return 0;
 }
